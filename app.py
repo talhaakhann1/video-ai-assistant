@@ -1,20 +1,20 @@
 import base64
 import html
+import logging
 import os
 import shutil
+import sys
 import tempfile
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 import streamlit as st
 import yt_dlp
 from dotenv import load_dotenv
 
 load_dotenv()
-
-import shutil, yt_dlp
-print("yt-dlp:", yt_dlp.version.__version__, "| deno:", shutil.which("deno"))
 
 
 def _apply_secret(name: str) -> None:
@@ -31,8 +31,50 @@ for _secret_name in (
     "QDRANT_URL",
     "QDRANT_API_KEY",
     "QDRANT_COLLECTION",
+    "VIDORA_DEBUG",
 ):
     _apply_secret(_secret_name)
+
+
+_DEBUG = os.getenv("VIDORA_DEBUG", "").lower() in ("1", "true", "yes")
+
+log = logging.getLogger("framewise")
+if not log.handlers:  # Streamlit re-runs this file on every interaction
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    log.addHandler(_handler)
+    log.setLevel(logging.DEBUG if _DEBUG else logging.INFO)
+    log.propagate = False
+
+
+@st.cache_resource
+def _log_environment() -> bool:
+    """Log the runtime once per server process, not on every rerun."""
+    log.info("python=%s yt-dlp=%s", sys.version.split()[0], yt_dlp.version.__version__)
+    log.info(
+        "deno on PATH=%s | deno in venv=%s | node=%s | ffmpeg=%s",
+        shutil.which("deno"),
+        os.path.exists(os.path.join(sys.prefix, "bin", "deno")),
+        shutil.which("node"),
+        shutil.which("ffmpeg"),
+    )
+    return True
+
+
+_log_environment()
+
+
+def _log_exc(context: str, exc: Exception) -> None:
+    """Log an error with its root cause. Detail only when VIDORA_DEBUG is on."""
+    cause = exc.__cause__ or exc.__context__
+    cause_txt = f" (cause: {type(cause).__name__})" if cause else ""
+    detail = (
+        str(exc).replace("\n", " ")[:300] if _DEBUG else "set VIDORA_DEBUG=1 for detail"
+    )
+    log.error(
+        "%s: %s%s: %s", context, type(exc).__name__, cause_txt, detail, exc_info=_DEBUG
+    )
+
 
 from core.errors import UserFacingError, safe_log
 from core.extractor import (
@@ -503,6 +545,7 @@ def render_pipeline_sidebar():
 
 def set_step(key: str, state: str):
     st.session_state.pipeline_steps[key] = state
+    log.info("step=%s state=%s", key, state)
     render_pipeline_sidebar()
 
 
@@ -667,6 +710,7 @@ if run_btn:
     elif source_mode == "Upload file" and uploaded_file is None:
         st.error("Choose an audio or video file to continue.")
     else:
+        _t0 = time.perf_counter()
         status_slot = st.empty()
         work_dir = None
         processing_source = None
@@ -689,6 +733,18 @@ if run_btn:
             # Cheap validation passed. Paid work failures still consume a slot.
             st.session_state.jobs_used += 1
             render_usage_sidebar()
+            log.info(
+                "job start: mode=%s language=%s host=%s jobs_used=%s/%s",
+                source_mode,
+                language,
+                (
+                    urlparse(processing_source).netloc
+                    if is_http_url(str(processing_source))
+                    else "-"
+                ),
+                st.session_state.jobs_used,
+                MAX_JOBS_PER_SESSION,
+            )
 
             st.session_state.pipeline_done = False
             st.session_state.result = None
@@ -751,11 +807,13 @@ if run_btn:
             st.session_state.analysis_language = language
             st.session_state.pipeline_done = True
             status_slot.success("Analysis complete.")
+            log.info("job complete")
             time.sleep(0.6)
             status_slot.empty()
             st.rerun()
 
         except UserFacingError as exc:
+            _log_exc("Job rejected or failed", exc)
             for key, _ in PIPELINE_STEPS:
                 if st.session_state.pipeline_steps.get(key) == "active":
                     set_step(key, "error")
@@ -765,6 +823,7 @@ if run_btn:
             status_slot.error(safe_message)
 
         except Exception as exc:
+            _log_exc("Job crashed", exc)
             for key, _ in PIPELINE_STEPS:
                 if st.session_state.pipeline_steps.get(key) == "active":
                     set_step(key, "error")
@@ -779,6 +838,7 @@ if run_btn:
             status_slot.error(safe_message)
 
         finally:
+            log.info("job end: %.1fs", time.perf_counter() - _t0)
             st.session_state.processing = False
             if work_dir:
                 shutil.rmtree(work_dir, ignore_errors=True)
@@ -932,12 +992,19 @@ if st.session_state.result:
                                 )
                             else:
                                 st.session_state.questions_used += 1
+                                log.info(
+                                    "question asked: %s/%s",
+                                    st.session_state.questions_used,
+                                    MAX_QUESTIONS_PER_SESSION,
+                                )
                                 try:
                                     with st.spinner("Thinking…"):
                                         answer = ask_question(r["rag_chain"], q)
                                 except UserFacingError as exc:
+                                    _log_exc("Question rejected or failed", exc)
                                     answer = str(exc)
                                 except Exception as exc:
+                                    _log_exc("Question crashed", exc)
                                     safe_log("Question failed", exc)
                                     answer = (
                                         "I couldn't get an answer from the AI service right now. "
@@ -968,6 +1035,11 @@ if st.session_state.result:
             else:
                 question = user_q.strip()
                 st.session_state.questions_used += 1
+                log.info(
+                    "question asked: %s/%s",
+                    st.session_state.questions_used,
+                    MAX_QUESTIONS_PER_SESSION,
+                )
                 st.session_state.chat_history.append(
                     {"role": "user", "content": question}
                 )
@@ -978,8 +1050,10 @@ if st.session_state.result:
                         try:
                             answer = ask_question(r["rag_chain"], question)
                         except UserFacingError as exc:
+                            _log_exc("Question rejected or failed", exc)
                             answer = str(exc)
                         except Exception as exc:
+                            _log_exc("Question crashed", exc)
                             safe_log("Question failed", exc)
                             answer = (
                                 "I couldn't get an answer from the AI service right now. "
