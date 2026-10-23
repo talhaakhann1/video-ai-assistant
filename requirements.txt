@@ -16,7 +16,7 @@ beautifulsoup4==4.15.0
 brotli==1.2.0
 build==1.6.1
 cachetools==7.2.4
-certifi==2026.10.18
+certifi>=2026.10.19
 cffi==2.1.1
 charset-normalizer==3.5.2
 cheroot==11.1.2
@@ -246,7 +246,7 @@ xxhash==4.0.2
 yappi==1.7.6
 yaql==3.2.0
 yarl==1.25.1
-yt-dlp[default] @ git+https://github.com/yt-dlp/yt-dlp.git
+yt-dlp[default]>=2026.10.21
 deno
 zipp==4.1.1
 zstandard==0.25.0
