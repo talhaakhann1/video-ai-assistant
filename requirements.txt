@@ -123,7 +123,6 @@ numpy==2.5.4
 oauthlib==4.0.0
 onnxruntime==1.31.0
 openai==3.35.1
-openai-whisper==20250625
 opentelemetry-api==1.45.1
 opentelemetry-exporter-otlp-common==0.66b1
 opentelemetry-exporter-otlp-proto-common==1.45.1
@@ -247,7 +246,7 @@ xxhash==4.0.2
 yappi==1.7.6
 yaql==3.2.0
 yarl==1.25.1
-yt-dlp==2026.8.19
-yt-dlp-ejs==0.8.0
+yt-dlp[default] @ git+https://github.com/yt-dlp/yt-dlp.git
+deno
 zipp==4.1.1
 zstandard==0.25.0
