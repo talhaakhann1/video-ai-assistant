@@ -1,0 +1,71 @@
+# === Virtual Environments ===
+venv/
+.venv/
+env/
+ENV/
+pyvenv.cfg
+
+# === Operating System Files ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Environment Variables / Credentials ===
+.env
+*.env
+!.env.sample
+.secrets
+secrets.*
+.streamlit/secrets.toml
+
+# === Temporary media / pipeline artifacts ===
+downloades/
+downloads/
+*.wav
+*.mp3
+*.mp4
+*.m4a
+*.webm
+*.ogg
+*.flac
+vector_db/
+
+# === Python Bytecode / Caching ===
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ipynb_checkpoints/
+
+# === IDEs and Text Editors ===
+.vscode/
+.idea/
+*.suo
+*.ntvs
+*.njsproj
+*.sln
+*.swp
+
+# === Package Build / Distribution ===
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# === Diagnostic / Log Files ===
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
