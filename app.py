@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import shutil, yt_dlp
+print("yt-dlp:", yt_dlp.version.__version__, "| deno:", shutil.which("deno"))
+
 
 def _apply_secret(name: str) -> None:
     try:
