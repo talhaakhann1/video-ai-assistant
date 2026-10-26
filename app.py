@@ -6,7 +6,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-import traceback
+
 import streamlit as st
 import yt_dlp
 from dotenv import load_dotenv
@@ -768,17 +768,16 @@ if run_btn:
             for key, _ in PIPELINE_STEPS:
                 if st.session_state.pipeline_steps.get(key) == "active":
                     set_step(key, "error")
-                    safe_log(f"Processing failed: {type(exc).__name__}: {exc}")
-                    safe_log(traceback.format_exc())
-
-                safe_message = (
+            safe_log("Processing failed", exc)
+            safe_message = (
                 "Analysis failed because of a processing or AI-service error. "
                 "Please try again with a smaller video. If the problem continues, "
                 "check the server logs."
-                )
-                st.session_state.pipeline_error = safe_message
-                render_pipeline_sidebar()
-                status_slot.error(safe_message)
+            )
+            st.session_state.pipeline_error = safe_message
+            render_pipeline_sidebar()
+            status_slot.error(safe_message)
+
         finally:
             st.session_state.processing = False
             if work_dir:
