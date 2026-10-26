@@ -5,13 +5,6 @@ from pathlib import Path
 import yt_dlp
 from pydub import AudioSegment
 import streamlit as st
-import json
-import subprocess
-from pathlib import Path
-
-from pydub import AudioSegment
-
-from core.errors import UserFacingError, safe_log
 import tempfile
 from core.errors import UserFacingError, safe_log
 from utils.validation import GROQ_MAX_AUDIO_BYTES, ydl_common_opts
@@ -92,75 +85,14 @@ def download_youtube_audio(url: str, work_dir: str) -> str:
 
 
 def convert_to_wav(input_path: str, work_dir: str) -> str:
-    """Extract audio from uploaded media and convert it to mono, 16 kHz WAV."""
-    input_file = Path(input_path)
+    """Convert an audio/video file to mono, 16 kHz WAV inside work_dir."""
+    output_path = os.path.join(work_dir, "converted.wav")
 
-    if not input_file.is_file() or input_file.stat().st_size == 0:
-        raise UserFacingError(
-            "The uploaded file is empty or could not be found."
-        )
+    audio = AudioSegment.from_file(input_path)
+    audio = audio.set_channels(1).set_frame_rate(16000)
+    audio.export(output_path, format="wav")
 
-    try:
-        result = subprocess.run(
-            [
-                "ffprobe",
-                "-v", "error",
-                "-show_streams",
-                "-of", "json",
-                str(input_file),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=True,
-        )
-
-        streams = json.loads(result.stdout).get("streams", [])
-        audio_streams = [
-            stream for stream in streams
-            if stream.get("codec_type") == "audio"
-        ]
-
-        if not audio_streams:
-            raise UserFacingError(
-                "This video does not contain a readable audio track. "
-                "Please upload a video with audio or an audio file."
-            )
-
-        output_path = str(Path(work_dir) / "converted.wav")
-
-        audio = AudioSegment.from_file(str(input_file))
-        audio = audio.set_channels(1).set_frame_rate(16000)
-        audio.export(output_path, format="wav")
-
-        if not Path(output_path).is_file() or Path(output_path).stat().st_size == 0:
-            raise UserFacingError("Audio conversion produced an empty file.")
-
-        safe_log("Uploaded media converted successfully")
-        return output_path
-
-    except UserFacingError:
-        raise
-    except subprocess.TimeoutExpired as exc:
-        raise UserFacingError(
-            "Checking the uploaded video took too long. Try a shorter file."
-        ) from exc
-    except subprocess.CalledProcessError as exc:
-        safe_log(f"FFprobe failed with exit code {exc.returncode}")
-        safe_log(f"FFprobe error: {exc.stderr[-1000:]}")
-        raise UserFacingError(
-            "Vidora could not inspect this video. Try exporting it as MP4 "
-            "with AAC audio and uploading it again."
-        ) from exc
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).exception(
-            "Uploaded media audio conversion failed"
-        )
-        raise UserFacingError(
-            "Vidora could not extract audio from this file. "
-            "Try an MP4 video with AAC audio."
-        ) from exc
+    return output_path
 
 
 def chunk_data(wav_path: str, work_dir: str, max_chunk_mb: int = MAX_CHUNK_MB) -> list[str]:
