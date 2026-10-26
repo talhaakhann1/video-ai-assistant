@@ -10,6 +10,7 @@ from pathlib import Path
 import streamlit as st
 import yt_dlp
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
@@ -765,15 +766,21 @@ if run_btn:
             status_slot.error(safe_message)
 
         except Exception as exc:
+
+
+            logging.getLogger(__name__).exception(
+            "Vidora pipeline failed unexpectedly"
+            )
+
             for key, _ in PIPELINE_STEPS:
                 if st.session_state.pipeline_steps.get(key) == "active":
                     set_step(key, "error")
-            safe_log("Processing failed", exc)
+
             safe_message = (
-                "Analysis failed because of a processing or AI-service error. "
-                "Please try again with a smaller video. If the problem continues, "
-                "check the server logs."
+            f"Analysis failed ({type(exc).__name__}). "
+            "Check the server logs for details."
             )
+
             st.session_state.pipeline_error = safe_message
             render_pipeline_sidebar()
             status_slot.error(safe_message)
