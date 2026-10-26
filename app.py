@@ -133,7 +133,7 @@ footer, #MainMenu, [data-testid="stMainMenu"], [data-testid="stAppDeployButton"]
 .v-hero-sub { max-width: 38rem; margin-top: 1rem; font-family: var(--font-read); font-size: 1.18rem; line-height: 1.6; color: var(--ink-2); }
 /* ── Composer: ruler edge ── */
 .st-key-composer { padding: 1.1rem 1.4rem 1.3rem; background: var(--sheet); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 22px 40px -28px rgba(24, 32, 51, 0.35); gap: 1rem; }
-.v-ruler { height: 22px; border: 1px solid var(--line); border-radius: 4px; background-color: var(--sheet-2); background-repeat: no-repeat; background-image: linear-gradient(var(--rec), var(--rec)), repeating-linear-gradient(90deg, var(--ink-3) 0 1px, transparent 1px 50px), repeating-linear-gradient(90deg, var(--line-2) 0 1px, transparent 1px 10px); background-size: 2px 100%, 100% 12px, 100% 7px; background-position: 12px 0, 0 100%, 0 100%; }
+.v-ruler { height: 22px; border: 1px solid var(--line); border-radius: 4px; background-color: var(--sheet-2); background-repeat: no-repeat; background-image: linear-gradient(var(--rec), var(--rec)), repeating-linear-gradient(90deg, var(--ink-3) 0 1px, transparent 1px 50px), repeating-linear-gradient(90deg, var(--line-2) 0 1px, transparent 1px 10px); background-size: 2px 100%, 100% 12px, 100% 7px; background-position: 12px 0, 0 100%, 0 100%;margin-bottom: 16px;  }
 .v-composer-note { font-size: 0.84rem; color: var(--ink-3); }
 [data-testid="stExpander"] details { background: var(--sheet); border: 1px solid var(--line-2); border-radius: 10px; }
 [data-testid="stExpander"] summary { font-weight: 600; color: var(--ink); }
@@ -687,7 +687,6 @@ if run_btn:
                 else:
                     assert_safe_local_media(Path(processing_source), MAX_UPLOAD_MB)
 
-            # Cheap validation passed. Paid work failures still consume a slot.
             st.session_state.jobs_used += 1
             render_usage_sidebar()
 
