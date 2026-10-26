@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -58,16 +59,21 @@ def download_youtube_audio(url: str, work_dir: str) -> str:
             raise RuntimeError("WAV output was not created.")
 
         return wav_path
-
     except Exception as exc:
+
+        logging.getLogger(__name__).exception(
+        "YouTube audio extraction failed"
+        )
+
         safe_log(
-            f"YouTube extraction failed: {type(exc).__name__}"
+        f"YouTube audio extraction failed: "
+        f"{type(exc).__name__}: {exc}"
         )
 
         raise UserFacingError(
-            "Vidora could not download this YouTube video. "
-            "Try another video or upload an audio file."
-        ) from exc
+        "Vidora could not download this YouTube video. "
+        "Check the server logs for details."
+        )  from exc
 
     finally:
         if cookies_file and os.path.exists(cookies_file):
@@ -75,6 +81,7 @@ def download_youtube_audio(url: str, work_dir: str) -> str:
                 os.remove(cookies_file)
             except OSError:
                 safe_log("Could not remove temporary cookie file")
+
 
 def convert_to_wav(input_path: str, work_dir: str) -> str:
     """Convert an audio/video file to mono, 16 kHz WAV inside work_dir."""
