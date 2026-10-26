@@ -11,12 +11,16 @@ MAX_CHUNK_MB = 18
 
 
 def download_youtube_audio(url: str, work_dir: str) -> str:
+    Path(work_dir).mkdir(parents=True, exist_ok=True)
+
     output_path = os.path.join(work_dir, "source_audio.%(ext)s")
+    cookies_file = None
 
     ydl_opts = {
         **ydl_common_opts(),
         "format": "bestaudio/best",
         "outtmpl": output_path,
+        "noplaylist": True,
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
@@ -25,13 +29,52 @@ def download_youtube_audio(url: str, work_dir: str) -> str:
         ],
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        filename = os.path.splitext(filename)[0] + ".wav"
+    try:
+        # Read cookie contents from Streamlit Secrets.
+        cookies = st.secrets.get("YOUTUBE_COOKIES", "")
 
-    return filename
+        if cookies.strip():
+            fd, cookies_file = tempfile.mkstemp(
+                prefix="vidora_cookies_",
+                suffix=".txt",
+            )
 
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(cookies.strip() + "\n")
+
+            ydl_opts["cookiefile"] = cookies_file
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+
+            if not info:
+                raise RuntimeError("No video information returned.")
+
+            wav_path = os.path.splitext(
+                ydl.prepare_filename(info)
+            )[0] + ".wav"
+
+        if not os.path.isfile(wav_path):
+            raise RuntimeError("WAV output was not created.")
+
+        return wav_path
+
+    except Exception as exc:
+        safe_log(
+            f"YouTube extraction failed: {type(exc).__name__}"
+        )
+
+        raise UserFacingError(
+            "Vidora could not download this YouTube video. "
+            "Try another video or upload an audio file."
+        ) from exc
+
+    finally:
+        if cookies_file and os.path.exists(cookies_file):
+            try:
+                os.remove(cookies_file)
+            except OSError:
+                safe_log("Could not remove temporary cookie file")
 
 def convert_to_wav(input_path: str, work_dir: str) -> str:
     """Convert an audio/video file to mono, 16 kHz WAV inside work_dir."""
@@ -95,3 +138,4 @@ def process_input(source: str, work_dir: str) -> list[str]:
     chunks = chunk_data(wav_path, work_dir)
     safe_log(f"Audio ready with {len(chunks)} chunk(s)")
     return chunks
+
